@@ -14,7 +14,7 @@ export const NOT_TARGET = '不适用' // 目标产品为「不适用」的公司
 export const DONE = '已合作'
 export const NONE = '未合作'
 
-export const isTarget = (c: Company) => c.product !== NOT_TARGET
+export const isTarget = (c: Company) => c.products.some(p => p !== NOT_TARGET)
 export const DOMESTIC = '中国'
 export const inScope = (c: Company, s: Scope) =>
   s.kind === 'world' ? true
@@ -93,14 +93,18 @@ export const blankRegions = (rs: Region[]) =>
 export const growRegions = (rs: Region[]) =>
   rs.filter(r => r.t.done > 0 && r.t.todo > 0).sort((a, b) => b.t.todo - a.t.todo || a.name.localeCompare(b.name, 'zh'))
 
-// 各目标产品的合作情况（不含「不适用」），目标公司多的排前面
+// 各目标产品的合作情况（不含「不适用」），公司多的排前面。一家公司有几个产品，就在几个产品里各算一次，
+// 所以各产品的家数加起来会超过公司总数
 export function products(list: Company[], stages: string[]) {
   const groups = new Map<string, Company[]>()
   for (const c of list) {
     if (!isTarget(c)) continue
-    const g = groups.get(c.product)
-    if (g) g.push(c)
-    else groups.set(c.product, [c])
+    for (const p of new Set(c.products)) {
+      if (p === NOT_TARGET) continue
+      const g = groups.get(p)
+      if (g) g.push(c)
+      else groups.set(p, [c])
+    }
   }
   return [...groups].map(([name, l]) => ({ name, t: tally(l, stages) })).sort((a, b) => b.t.target - a.t.target)
 }

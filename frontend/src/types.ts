@@ -10,7 +10,7 @@ export interface Company {
   city: string // 地级市（县级已并入）
   region: string // 大区：国内为华南/华东/华中/华北/西南/东北/西北；海外为亚洲/东南亚/欧洲/北美等
   stage: string // 当前阶段，取值见 CompanyData.stages
-  product: string // 目标产品
+  products: string[] // 目标产品，可以有多个
   owner: string // 负责人
   next: string // 下一步行动
   scale: number // 预计规模（万元）

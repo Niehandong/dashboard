@@ -18,7 +18,7 @@ test('一行数据转成公司记录', () => {
   assert.deepEqual(skipped, [])
   assert.deepEqual(companies, [{
     id: 'id-1', name: '甲公司', group: '三一集团有限公司', country: '中国', province: '湖南', city: '长沙', region: '华中',
-    stage: '已合作', product: '激光器', owner: '张三', next: '回访', scale: 300, address: '湖南省长沙市岳麓区1号', website: '', coord: [112.9, 28.2],
+    stage: '已合作', products: ['激光器'], owner: '张三', next: '回访', scale: 300, address: '湖南省长沙市岳麓区1号', website: '', coord: [112.9, 28.2],
   }])
 })
 
@@ -76,7 +76,23 @@ test('地址解析', () => {
 test('目标产品为空或「不适用」时换成具体产品，同一家公司每次结果相同', () => {
   const run = () => cleanRows(HEADER, [row({ id: 'a', name: '甲公司', product: '不适用' }), row({ id: 'b', name: '乙公司', product: null }), row({ id: 'c', name: '丙公司', product: '光连接' })]).companies
   const [a, b, c] = run()
-  assert.ok(PRODUCTS.includes(a.product) && PRODUCTS.includes(b.product))
-  assert.equal(c.product, '光连接')
-  assert.deepEqual(run().map(x => x.product), [a.product, b.product, c.product])
+  assert.ok(a.products.length === 1 && PRODUCTS.includes(a.products[0]) && PRODUCTS.includes(b.products[0]))
+  assert.deepEqual(c.products, ['光连接'])
+  assert.deepEqual(run().map(x => x.products), [a.products, b.products, c.products])
+})
+
+test('目标产品可以有多个：按顿号、逗号、斜杠等拆开，去重，去掉不适用', () => {
+  const { companies } = cleanRows(HEADER, [row({ product: '激光器、光连接，激光器 / PCD微钻；不适用' })])
+  assert.deepEqual(companies[0].products, ['激光器', '光连接', 'PCD微钻'])
+})
+
+test('mockMulti：一部分只有一个产品的公司多出一两个，不重复，结果可重复；已有多个的不动', () => {
+  const rows = [...Array.from({ length: 200 }, (_, i) => row({ id: `i${i}`, name: `公司${i}`, product: ['激光器', '光连接', '激光设备', 'PCD微钻'][i % 4] })), row({ id: 'm', name: '多产品公司', product: '激光器、光连接' })]
+  const run = () => cleanRows(HEADER, rows, { mockMulti: true }).companies
+  const list = run(), n = k => list.filter(c => c.products.length === k).length
+  assert.ok(n(1) > 100 && n(2) > 20 && n(3) > 3 && n(1) + n(2) + n(3) === 201)
+  assert.ok(list.every(c => new Set(c.products).size === c.products.length))
+  assert.deepEqual(list.at(-1).products, ['激光器', '光连接'])
+  assert.deepEqual(run().map(c => c.products), list.map(c => c.products))
+  assert.ok(cleanRows(HEADER, rows).companies.slice(0, 200).every(c => c.products.length === 1)) // 默认不开
 })

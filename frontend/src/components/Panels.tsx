@@ -76,7 +76,7 @@ export function StagePanel({ t, stages }: { t: Tally; stages: string[] }) {
 export function ProductPanel({ rows, stages }: { rows: { name: string; t: Tally }[]; stages: string[] }) {
   const max = Math.max(1, ...rows.map(r => r.t.target))
   return (
-    <Panel title="目标产品" note="已合作 / 子公司">
+    <Panel title="目标产品" note="已合作 / 涉及的子公司">
       {rows.length ? (
         <ul className="pn-rows pn-prod">
           {rows.map(r => (
@@ -88,6 +88,7 @@ export function ProductPanel({ rows, stages }: { rows: { name: string; t: Tally 
           ))}
         </ul>
       ) : <p className="pn-empty">这个范围内没有目标公司</p>}
+      {rows.length > 0 && <p className="pn-foot">一家公司可以有多个目标产品，在每个产品里各算一次</p>}
     </Panel>
   )
 }

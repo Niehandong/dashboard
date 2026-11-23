@@ -45,7 +45,7 @@ export default function DetailDrawer({ data, target, onNavigate, onClose }: Prop
           <dl className="d-grid">
             <dt>所在地</dt><dd>{isDomestic(f) ? f.province : f.country}，{f.city}（{f.region}）</dd>
             {f.group && <><dt>所属集团</dt><dd>{f.group}</dd></>}
-            <dt>目标产品</dt><dd>{f.product || '未填写'}</dd>
+            <dt>目标产品</dt><dd>{f.products.join('、') || '未填写'}</dd>
             <dt>负责人</dt><dd>{f.owner || '未填写'}</dd>
             <dt>下一步行动</dt><dd className="d-next">{f.next || '未填写'}</dd>
             {f.address && <><dt>注册地址</dt><dd>{f.address}</dd></>}
@@ -77,7 +77,7 @@ export default function DetailDrawer({ data, target, onNavigate, onClose }: Prop
                 <i style={{ background: STAGE_COLOR[f.stage] }} />
                 <b>{f.name}</b>
                 <span>{f.stage}</span>
-                <small>{f.product}，{f.owner}{f.scale ? `，${fmt(f.scale)} 万元` : ''}</small>
+                <small>{f.products.join('、')}，{f.owner}{f.scale ? `，${fmt(f.scale)} 万元` : ''}</small>
               </button>
             </li>
           ))}

@@ -40,6 +40,26 @@ const REQUIRED = ['name', 'address']
 const text = v => String(v ?? '').trim()
 const isNum = v => typeof v === 'number' && Number.isFinite(v)
 
+// 目标产品可以有多个：单元格里用顿号、逗号、分号、斜杠或换行隔开（如「激光器、光连接」）。
+// 去掉重复的和「不适用」；一个都没有时按公司名分一个
+function parseProducts(cell, name) {
+  const list = [...new Set(text(cell).split(/[、，,;；\/|\n]+/).map(s => s.trim()).filter(s => s && s !== '不适用'))]
+  return list.length ? list : [mockProduct(name)]
+}
+
+// 演示用：原始表里每家公司只填了一个目标产品，这里让一部分公司多出一两个（约 22% 的公司两个、8% 三个），
+// 多出来的从同一张表里出现过的产品中按公司名固定挑选。只动只有一个产品的公司。对接真实数据时不要开（main 里的 mockMulti）
+function addMockProducts(companies) {
+  const pool = [...new Set(companies.flatMap(c => c.products))].sort()
+  for (const c of companies) {
+    if (c.products.length !== 1) continue
+    const h = createHash('md5').update(`multi:${c.name}`).digest()
+    const r = h.readUInt32BE(0) % 100, extra = r < 8 ? 2 : r < 30 ? 1 : 0
+    const rest = pool.filter(p => p !== c.products[0])
+    for (let i = 0; i < extra && rest.length; i++) c.products.push(...rest.splice(h.readUInt32BE(4 + i * 4) % rest.length, 1))
+  }
+}
+
 function toCompany(name, get) {
   const address = text(get('address'))
   const abroad = locateOverseas(address)
@@ -57,7 +77,7 @@ function toCompany(name, get) {
     city: loc.city,
     region: abroad ? AREA[abroad.country] ?? '海外' : REGION[loc.province],
     stage: STAGES.includes(stage) ? stage : '未合作',
-    product: ['', '不适用'].includes(text(get('product'))) ? mockProduct(name) : text(get('product')),
+    products: parseProducts(get('product'), name),
     owner: text(get('owner')),
     next: text(get('next')),
     scale: Number.isFinite(scale) ? scale : 0,
@@ -70,9 +90,10 @@ function toCompany(name, get) {
 /**
  * @param {unknown[]} header 表头行
  * @param {unknown[][]} rows 数据行
+ * @param {{mockMulti?: boolean}} [opts] mockMulti：演示用，让一部分公司有多个目标产品
  * @returns {{companies: object[], skipped: string[]}} skipped 为识别不出地址而跳过的公司名
  */
-export function cleanRows(header, rows) {
+export function cleanRows(header, rows, opts = {}) {
   const names = header.map(text)
   const col = Object.fromEntries(Object.entries(COLUMNS).map(([k, v]) => [k, names.indexOf(v)]))
   const missing = REQUIRED.filter(k => col[k] < 0).map(k => COLUMNS[k])
@@ -88,6 +109,7 @@ export function cleanRows(header, rows) {
     if (c) companies.push(c)
     else skipped.push(name)
   }
+  if (opts.mockMulti) addMockProducts(companies)
   return { companies, skipped }
 }
 
@@ -114,7 +136,7 @@ async function main() {
   for (const input of inputs) {
     const [header, ...rows] = await readSheet(input)
     if (!header) throw new Error(`表格是空的：${input}`)
-    const r = cleanRows(header, rows)
+    const r = cleanRows(header, rows, { mockMulti: true })
     const fresh = r.companies.filter(c => !ids.has(c.id) && ids.add(c.id)) // 不同文件里重复的公司只留第一次出现的
     companies.push(...fresh)
     updated = Math.max(updated, statSync(input).mtimeMs)
