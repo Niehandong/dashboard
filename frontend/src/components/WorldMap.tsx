@@ -7,7 +7,7 @@ import { areas, inScope, isTarget, sameScope, DONE, NONE, WORLD, type Scope } fr
 
 // 底图（由 scripts/build_geo.sh 生成）：
 //   world.json      面：其他国家按国家一块 + 中国按省份；
-//                   线：经纬网、省/州分界线、国界（名称以 _ 开头，样式见 LINE_STYLE）
+//                   线：经纬网、省/州分界线、国界（名称以 _ 开头，样式见 PALETTES 里的 lines）
 //                   线条做在底图里，拖动、缩放时只需整体移动，不用逐点重算坐标
 //   countries.json / provinces.json  国家名、省/州名标注点
 //   china.json      中国省级地图，这里只用各省的中心点（cp）放省份的汇总标牌
@@ -19,14 +19,38 @@ const geoData: { cnNames: Set<string>; countries: Label[]; provinces: Label[]; p
 
 // 底图中各线条的样式：从暗到亮叠放
 type LineStyle = { borderColor: string; borderWidth: number; shadowColor?: string; shadowBlur?: number }
-const LINE_STYLE: Record<string, LineStyle> = {
-  _graticule: { borderColor: 'rgba(111,168,230,.09)', borderWidth: 0.6 },
-  _inner: { borderColor: '#1E4470', borderWidth: 0.5 },
-  // 国界光晕：一条宽而淡的线垫在下面，代替 shadowBlur（模糊在每帧重画时很耗性能）
-  _border_glow: { borderColor: 'rgba(61,139,217,.14)', borderWidth: 4 },
-  _border: { borderColor: 'rgba(75,155,232,.85)', borderWidth: 1 },
-  _china_border: { borderColor: '#9ADBFF', borderWidth: 1.6, shadowColor: '#4FB3FF', shadowBlur: 14 },
+
+// 两套配色：dark = 原来的深色作战沙盘；light = 照 demo2 的白底浅蓝（「作战地图」原图的风格）
+const PALETTES = {
+  dark: {
+    lines: {
+      _graticule: { borderColor: 'rgba(111,168,230,.09)', borderWidth: 0.6 },
+      _inner: { borderColor: '#1E4470', borderWidth: 0.5 },
+      // 国界光晕：一条宽而淡的线垫在下面，代替 shadowBlur（模糊在每帧重画时很耗性能）
+      _border_glow: { borderColor: 'rgba(61,139,217,.14)', borderWidth: 4 },
+      _border: { borderColor: 'rgba(75,155,232,.85)', borderWidth: 1 },
+      _china_border: { borderColor: '#9ADBFF', borderWidth: 1.6, shadowColor: '#4FB3FF', shadowBlur: 14 },
+    } as Record<string, LineStyle>,
+    land: '#0D2647', litLo: '#123A66', litHi: '#2468AD', regionBorder: '#2B5E92',
+    geoLabel: 'rgba(170,198,230,.62)', countryLabel: 'rgba(170,198,230,.55)', provinceLabel: 'rgba(170,198,230,.62)',
+    tip: { bg: 'rgba(8,24,46,.94)', border: '#2B5E92', ink: '#E6EDF5', shadow: 'rgba(61,139,217,.35)', hint: '#8FB3D9' },
+    tag: { base: '#051226', fill: 0.42, fillBlank: 0.22, fillHot: 0.6, name: '#EEF5FF', count: '#FFFFFF', sub: 'rgba(238,245,255,.72)', blankName: '#B8C4D6', blankCount: '#D5DDE8', hot: '#FFFFFF' },
+  },
+  light: {
+    lines: {
+      _graticule: { borderColor: 'rgba(0,0,0,0)', borderWidth: 0 },
+      _inner: { borderColor: '#FFFFFF', borderWidth: 0.6 },
+      _border_glow: { borderColor: 'rgba(120,165,225,.18)', borderWidth: 4 },
+      _border: { borderColor: '#FFFFFF', borderWidth: 1 },
+      _china_border: { borderColor: '#8CB1DE', borderWidth: 1.2 },
+    } as Record<string, LineStyle>,
+    land: '#E3EDF9', litLo: '#D3E3F6', litHi: '#8DB5E6', regionBorder: '#FFFFFF',
+    geoLabel: '#6E7D95', countryLabel: '#8693A8', provinceLabel: '#6E7D95',
+    tip: { bg: 'rgba(255,255,255,.97)', border: '#D6E1EF', ink: '#1F2A44', shadow: 'rgba(40,80,150,.16)', hint: '#6B7689' },
+    tag: { base: '#FFFFFF', fill: 0.14, fillBlank: 0.08, fillHot: 0.28, name: '#13285A', count: '#13285A', sub: '#5A6478', blankName: '#6B7689', blankCount: '#4A5568', hot: '#13285A' },
+  },
 }
+type Palette = typeof PALETTES.dark
 
 let mapReady: Promise<boolean> | null = null
 function loadWorld() {
@@ -146,7 +170,6 @@ function aggregate(ctx: AggCtx, kind: Agg['kind'], list: Company[], keyOf: (f: C
 // 整块标牌（落点、光柱、牌面）只用一种颜色：这个地方走得最远的阶段的颜色，站远了也能分出合作进展。
 // 光柱越高，子公司越多。
 const TAG = {
-  dark: '#051226', name: '#EEF5FF', count: '#FFFFFF', sub: 'rgba(238,245,255,.72)',
   cut: 7, // 右上角切掉的大小
   bar: 4, // 牌面左侧的实色条
 }
@@ -230,11 +253,12 @@ function layoutTags(inst: echarts.ECharts | undefined, list: Agg[], stages: stri
 }
 
 // 画一个标牌。原点是地面落点，向上为负
-function tagGraphic(a: Placed) {
+function tagGraphic(a: Placed, pal: Palette) {
+  const T = pal.tag
   const b = tagBox(a), top = -a.beam - b.h, c = TAG.cut, mid = top + b.h / 2 - 1
   const blank = a.top === NONE // 全部未合作：灰色，整体调暗
   const col = STAGE_COLOR[a.top] ?? STAGE_COLOR[NONE], k = blank ? 0.6 : 1
-  const hot = { stroke: '#FFFFFF' } // 鼠标移上去：描边变白（橙色和「商机开发」的颜色太接近）
+  const hot = { stroke: T.hot } // 鼠标移上去：描边变白（浅色版变深蓝；橙色和「商机开发」的颜色太接近）
   const x0 = TAG.bar + 9
   return [
     // 地面落点：压扁的两圈光环（像投在地面上）+ 中心亮点
@@ -248,13 +272,13 @@ function tagGraphic(a: Placed) {
     {
       type: 'polygon',
       shape: { points: [[0, top], [b.w - c, top], [b.w, top + c], [b.w, -a.beam], [0, -a.beam]] },
-      style: { fill: mix(TAG.dark, col, blank ? 0.22 : 0.42), stroke: col, lineWidth: 1.2, opacity: 0.96 },
-      emphasis: { style: { stroke: '#FFFFFF', lineWidth: 2, fill: mix(TAG.dark, col, 0.6) } },
+      style: { fill: mix(T.base, col, blank ? T.fillBlank : T.fill), stroke: col, lineWidth: 1.2, opacity: 0.96 },
+      emphasis: { style: { stroke: T.hot, lineWidth: 2, fill: mix(T.base, col, T.fillHot) } },
     },
     { type: 'rect', shape: { x: 0, y: top, width: TAG.bar, height: b.h }, style: { fill: col }, silent: true },
-    { type: 'text', style: { text: a.name, x: x0, y: mid, fill: blank ? '#B8C4D6' : TAG.name, font: `${b.name}px sans-serif`, verticalAlign: 'middle' }, silent: true },
-    { type: 'text', style: { text: b.main, x: x0 + b.nameW + 9, y: mid, fill: blank ? '#D5DDE8' : TAG.count, font: `600 ${b.count}px ${NUM_FONT}`, verticalAlign: 'middle' }, silent: true },
-    ...(b.sub ? [{ type: 'text', style: { text: b.sub, x: x0 + b.nameW + 9 + b.mainW + 2, y: mid + 1.5, fill: TAG.sub, font: `500 ${b.subSize}px ${NUM_FONT}`, verticalAlign: 'middle' }, silent: true }] : []),
+    { type: 'text', style: { text: a.name, x: x0, y: mid, fill: blank ? T.blankName : T.name, font: `${b.name}px sans-serif`, verticalAlign: 'middle' }, silent: true },
+    { type: 'text', style: { text: b.main, x: x0 + b.nameW + 9, y: mid, fill: blank ? T.blankCount : T.count, font: `600 ${b.count}px ${NUM_FONT}`, verticalAlign: 'middle' }, silent: true },
+    ...(b.sub ? [{ type: 'text', style: { text: b.sub, x: x0 + b.nameW + 9 + b.mainW + 2, y: mid + 1.5, fill: T.sub, font: `500 ${b.subSize}px ${NUM_FONT}`, verticalAlign: 'middle' }, silent: true }] : []),
   ]
 }
 
@@ -295,6 +319,7 @@ interface Props {
   onPickCity?: (key: string) => void // 点击城市的标牌：key 见 utils 的 cityKey
   scope: Scope // 当前范围（面板按它统计）
   onScope: (s: Scope) => void // 点击标牌、缩小地图时由地图切换范围
+  light?: boolean // 浅色主题（照 demo2）
 }
 // 面板让地图切换范围（点面包屑、点榜单里的地区）
 export interface MapHandle { goto(s: Scope): void }
@@ -319,10 +344,10 @@ function usePixelRatio() {
 }
 
 const CAROUSEL_MS = 6000
-const INK = '#E6EDF5'
 const CHINA_CENTER: Coord = [104, 35]
 
-const WorldMap = forwardRef<MapHandle, Props>(function WorldMap({ data, stages, paused = false, onPickCity, scope, onScope }, ref) {
+const WorldMap = forwardRef<MapHandle, Props>(function WorldMap({ data, stages, paused = false, onPickCity, scope, onScope, light = false }, ref) {
+  const pal = light ? PALETTES.light : PALETTES.dark
   const [ready, setReady] = useState(false)
   const [failed, setFailed] = useState(false)
   const [preset, setPreset] = useState<string | null>('全球')
@@ -401,11 +426,11 @@ const WorldMap = forwardRef<MapHandle, Props>(function WorldMap({ data, stages, 
       animationEasingUpdate: 'cubicInOut',
       tooltip: {
         trigger: 'item',
-        backgroundColor: 'rgba(8,24,46,.94)',
-        borderColor: '#2B5E92',
+        backgroundColor: pal.tip.bg,
+        borderColor: pal.tip.border,
         padding: [12, 16],
-        textStyle: { color: INK, fontSize: 15 },
-        extraCssText: 'box-shadow:0 0 18px rgba(61,139,217,.35);line-height:1.7',
+        textStyle: { color: pal.tip.ink, fontSize: 15 },
+        extraCssText: `box-shadow:0 0 18px ${pal.tip.shadow};line-height:1.7`,
         formatter: (p: { data?: { a?: Agg } }) => {
           const a = p.data?.a
           if (a) {
@@ -413,7 +438,7 @@ const WorldMap = forwardRef<MapHandle, Props>(function WorldMap({ data, stages, 
               .map(s => `<span style="color:${STAGE_COLOR[s]}">●</span> ${s} ${a.byStage[s]} 家`).join('<br>')
             const merged = (a.members?.length ?? 1) > 1
             const hint = merged ? '点击放大，分开查看' : a.kind === 'city' ? '点击查看该市的公司列表' : '点击放大'
-            return `<b style="font-size:18px">${a.kind === 'country' ? a.key : a.name}</b>${a.parent && !merged ? `　${a.parent}` : ''}<br>${merged ? `${a.members!.join('、')}<br>` : ''}子公司 ${a.list.length} 家${a.plain || a.target === a.list.length ? '' : `，其中目标公司 ${a.target} 家`}<br>预计规模 ${fmt(a.scale)} 万元<br>${rows}<br><span style="color:#8FB3D9">${hint}</span>`
+            return `<b style="font-size:18px">${a.kind === 'country' ? a.key : a.name}</b>${a.parent && !merged ? `　${a.parent}` : ''}<br>${merged ? `${a.members!.join('、')}<br>` : ''}子公司 ${a.list.length} 家${a.plain || a.target === a.list.length ? '' : `，其中目标公司 ${a.target} 家`}<br>预计规模 ${fmt(a.scale)} 万元<br>${rows}<br><span style="color:${pal.tip.hint}">${hint}</span>`
           }
           return ''
         },
@@ -427,21 +452,21 @@ const WorldMap = forwardRef<MapHandle, Props>(function WorldMap({ data, stages, 
         ...(v.center ? { center: v.center } : {}),
         zoom: v.zoom,
         // 区域不描边：国界、省/州分界线是底图里单独的线条区域
-        itemStyle: { areaColor: '#0D2647', borderWidth: 0 },
+        itemStyle: { areaColor: pal.land, borderWidth: 0 },
         emphasis: { disabled: true },
-        label: { ...labels.geo.label, color: 'rgba(170,198,230,.62)', fontSize: 12 },
+        label: { ...labels.geo.label, color: pal.geoLabel, fontSize: 12 },
         tooltip: { show: false },
         regions: [
           ...[...geoData.cnNames].map(name => ({
             name,
-            itemStyle: { areaColor: mix('#123A66', '#2468AD', Math.sqrt((perProvince.get(name) ?? 0) / maxN)), borderColor: '#2B5E92', borderWidth: 0.6 },
+            itemStyle: { areaColor: mix(pal.litLo, pal.litHi, Math.sqrt((perProvince.get(name) ?? 0) / maxN)), borderColor: pal.regionBorder, borderWidth: 0.6 },
           })),
           // 有子公司的海外国家也点亮（和中国公司较少的省份差不多亮）
           ...aggs.countries.filter(c => c.key !== '中国').map(c => ({
             name: GEO_NAME[c.key] ?? c.key,
-            itemStyle: { areaColor: mix('#123A66', '#2468AD', 0.45), borderColor: '#2B5E92', borderWidth: 0.6 },
+            itemStyle: { areaColor: mix(pal.litLo, pal.litHi, 0.45), borderColor: pal.regionBorder, borderWidth: 0.6 },
           })),
-          ...Object.entries(LINE_STYLE).map(([name, itemStyle]) => ({ name, silent: true, itemStyle })),
+          ...Object.entries(pal.lines).map(([name, itemStyle]) => ({ name, silent: true, itemStyle })),
         ],
       },
       series: [
@@ -449,7 +474,7 @@ const WorldMap = forwardRef<MapHandle, Props>(function WorldMap({ data, stages, 
           // 单独一层（zlevel 3）：与底图同层时，文字会拖慢每一帧的重绘
           id: 'country-labels', type: 'scatter', coordinateSystem: 'geo', silent: true, zlevel: 3, z: 0, symbolSize: 1, itemStyle: { color: 'transparent' }, // 透明色而不是 opacity:0，否则标签会一起隐藏
           data: labels.series[0].data,
-          label: { show: true, formatter: '{b}', color: 'rgba(170,198,230,.55)', fontSize: 13 },
+          label: { show: true, formatter: '{b}', color: pal.countryLabel, fontSize: 13 },
           labelLayout: { hideOverlap: true },
         },
         {
@@ -457,7 +482,7 @@ const WorldMap = forwardRef<MapHandle, Props>(function WorldMap({ data, stages, 
           id: 'province-labels', type: 'scatter', coordinateSystem: 'geo', silent: true, zlevel: 3, z: 0, symbolSize: 1, itemStyle: { color: 'transparent' },
           data: labels.series[1].data,
           // padding 加大标签的占位范围：重叠判断更宽松，留下的名字之间有空隙
-          label: { show: true, formatter: '{b}', color: 'rgba(170,198,230,.62)', fontSize: 12, padding: [4, 8], backgroundColor: 'rgba(0,0,0,0)' }, // 透明背景：有背景时 padding 才计入占位
+          label: { show: true, formatter: '{b}', color: pal.provinceLabel, fontSize: 12, padding: [4, 8], backgroundColor: 'rgba(0,0,0,0)' }, // 透明背景：有背景时 padding 才计入占位
           labelLayout: { hideOverlap: true },
         },
         {
@@ -468,12 +493,12 @@ const WorldMap = forwardRef<MapHandle, Props>(function WorldMap({ data, stages, 
             const a = rendered.current[params.dataIndex]
             if (!a) return
             const [x, y] = api.coord([api.value(0), api.value(1)])
-            return { type: 'group', x, y, children: tagGraphic(a) }
+            return { type: 'group', x, y, children: tagGraphic(a, pal) }
           },
         },
       ],
     }
-  }, [data.stages, aggs, markers, ready]) // ready：底图加载后重新生成，带上国界、标注等数据
+  }, [data.stages, aggs, markers, ready, pal]) // ready：底图加载后重新生成，带上国界、标注等数据
 
   // 按缩放倍数更新底图文字和标记
   const applyZoom = (inst: echarts.ECharts, zoom: number) => {

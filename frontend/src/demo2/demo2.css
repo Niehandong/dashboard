@@ -1,0 +1,98 @@
+/* demo2：一屏四块的汇报页。样式都在 .d2 下面，不影响其它 demo */
+html, body { margin: 0; }
+body { background: #071425; }
+.d2, .d2-state { --bg: #F3F6FB; --surface: #FFFFFF; --ink: #1F2A44; --navy: #13285A; --muted: #6B7689; --line: #DDE6F1; --signal: #F26B1D;
+  --th-bg: linear-gradient(180deg, #E4F1FE 0%, #D6E7FA 100%); --th-ink: #1E3266; --th-line: #C9DBF0;
+  --num: 'Barlow Condensed', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+  font-family: 'PingFang SC', 'Microsoft YaHei', 'Noto Sans SC', 'WenQuanYi Micro Hei', sans-serif; color: var(--ink); -webkit-font-smoothing: antialiased; }
+.d2 *, .d2-state * { box-sizing: border-box; }
+.d2-state { min-height: 100vh; display: grid; place-items: center; padding: 24px; background: var(--bg); }
+.d2 { position: fixed; inset: 0; overflow: hidden; background: var(--bg); }
+.d2-screen { position: absolute; width: 1920px; height: 1080px; transform-origin: 0 0; display: grid; grid-template-rows: 96px 1fr; background: var(--bg); }
+.d2 :focus-visible { outline: 2px solid var(--signal); outline-offset: 2px; }
+
+/* 标题栏：和原图一样左边品牌橙、往右渐淡 */
+.d2-head { display: flex; align-items: center; gap: 28px; padding: 0 40px; position: relative;
+  background: linear-gradient(90deg, #F0621A 0, #F68A45 360px, #FDD3B5 760px, #FFF1E6 1100px, #FFF8F3 100%);
+  box-shadow: 0 2px 10px rgba(242,107,29,.18); }
+.d2-head h1 { margin: 0; line-height: 1.1; font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', serif; font-weight: 900; font-size: 36px; letter-spacing: .12em; white-space: nowrap; color: #fff; text-shadow: 0 2px 6px rgba(160,60,0,.3); }
+.d2-titles { display: flex; flex-direction: column; gap: 4px; }
+.d2-titles p { margin: 0; font-size: 18px; letter-spacing: .12em; color: #fff; opacity: .95; white-space: nowrap; }
+.d2-right { margin-left: auto; display: flex; align-items: center; gap: 20px; white-space: nowrap; }
+.d2-date { color: var(--muted); font-size: 16px; }
+.d2-clock { font-family: var(--num); font-size: 28px; font-weight: 600; font-variant-numeric: tabular-nums; color: var(--navy); }
+.d2-right button { font: inherit; font-size: 15px; color: var(--signal); border: 1px solid rgba(242,107,29,.55); background: #fff; padding: 5px 16px; border-radius: 6px; cursor: pointer; }
+.d2-right button:hover { background: var(--signal); color: #fff; }
+
+/* 四块：白色卡片 */
+.d2-grid { display: grid; grid-template-columns: 850px 1fr; grid-template-rows: 530px 1fr; grid-template-areas: 'map plan' 'prod proj'; gap: 18px; padding: 16px 40px 22px; min-height: 0; }
+.d2-block { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: var(--surface); border: 1px solid #E4EAF3; border-radius: 12px; box-shadow: 0 4px 16px rgba(40,80,150,.06); }
+.d2-block > header { display: flex; align-items: baseline; justify-content: space-between; gap: 16px; padding: 14px 20px 10px; }
+.d2-block h2 { margin: 0; font-size: 22px; font-weight: 800; letter-spacing: .04em; white-space: nowrap; color: var(--navy); }
+.d2-block h2 b { display: inline-block; font-size: 22px; font-weight: 800; color: var(--signal); margin-right: 8px; }
+.d2-note { color: var(--muted); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d2-note em { font-style: normal; color: #B86A12; background: #FFF3E3; border: 1px solid #F5CD9A; padding: 1px 8px; border-radius: 4px; }
+.d2-body { position: relative; flex: 1; min-height: 0; padding: 0 20px 14px; }
+.d2-empty { height: 100%; display: grid; place-items: center; color: var(--muted); font-size: 16px; }
+
+/* 地图：白底淡蓝大陆，右侧图例卡片 */
+.d2-bmap { position: absolute; inset: 0 8px 8px; }
+.d2-legend { position: absolute; left: 28px; bottom: 22px; min-width: 150px; padding: 12px 16px 6px; background: rgba(250,252,255,.94); border: 1px solid #E3EAF4; border-radius: 10px; box-shadow: 0 4px 14px rgba(40,80,150,.08); font-size: 15px; color: #2B3550; }
+.d2-legend h3 { margin: 0 0 6px; font-size: 16px; font-weight: 700; color: var(--navy); }
+.d2-legend div { display: flex; align-items: center; height: 30px; }
+.d2-legend i { display: inline-block; width: 13px; height: 13px; border-radius: 50%; margin-right: 10px; }
+.d2-legend b { font-family: var(--num); font-size: 18px; font-weight: 600; color: var(--navy); margin-left: auto; padding-left: 14px; }
+
+/* 表格：表头和原图一样浅蓝渐变、深蓝字，带竖线的圆角表 */
+.d2-table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: fixed; font-size: 15px; color: #3A4152; border: 1px solid var(--th-line); border-radius: 8px; overflow: hidden; }
+.d2-table th { text-align: center; font-weight: 700; font-size: 15px; color: var(--th-ink); padding: 9px 10px; background: var(--th-bg); border-bottom: 1px solid var(--th-line); white-space: nowrap; }
+.d2-table td { padding: 0 10px; height: 39px; border-bottom: 1px solid #E6EDF6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.d2-table th + th, .d2-table td + td { border-left: 1px solid #E1E9F4; }
+.d2-table tbody tr:last-child td { border-bottom: 0; }
+.d2-table tbody tr:nth-child(even) { background: #F7FAFE; }
+.d2-table .c { text-align: center; } .d2-table .r { text-align: right; }
+.d2-table th.r { text-align: center; }
+.d2-table .num { font-family: var(--num); font-size: 19px; font-variant-numeric: tabular-nums; color: #26304A; }
+.d2-table .code { color: #2763C4; }
+.d2-table .name span { font-weight: 600; color: #1F2A44; }
+.d2-table .name small { color: var(--muted); font-size: 12px; margin-left: 8px; }
+.d2-stage { display: inline-block; padding: 0 12px; font-size: 15px; font-weight: 600; line-height: 28px; border-radius: 4px; }
+/* 行高固定：筛选后行数变少时表格不会被拉高 */
+.d2-plan .d2-table td { height: 50px; }
+.d2-prod .d2-table td, .d2-proj .d2-table td { height: 72px; }
+.d2-table td.d2-none { height: 132px; }
+.d2-table td { font-size: 16px; }
+.d2-plan .d2-table th:nth-child(1) { width: 64px; } .d2-plan .d2-table th:nth-child(2) { width: 150px; }
+.d2-plan .d2-table th:nth-child(3) { width: 190px; } .d2-plan .d2-table th:nth-child(4) { width: 120px; }
+.d2-plan .d2-table th:nth-child(5) { width: 112px; } .d2-plan .d2-table th:nth-child(7) { width: 130px; }
+.d2-plan .d2-table th { line-height: 1.35; padding: 6px 8px; }
+.d2-plan .d2-table td.r { padding-right: 28px; }
+.d2-proj .d2-table th:nth-child(1) { width: 140px; } .d2-proj .d2-table th:nth-child(4) { width: 130px; }
+.d2-proj .d2-table th:nth-child(5) { width: 100px; } .d2-proj .d2-table th:nth-child(6) { width: 150px; }
+.d2-table tbody tr[role='button'] { cursor: pointer; }
+.d2-table tbody tr[role='button']:hover { background: #EAF3FE; }
+.d2-table tbody tr[role='button']:focus-visible { outline-offset: -2px; }
+/* 公司详情 */
+.d2-detail { margin: 16px 0 0; display: grid; grid-template-columns: 110px 1fr; gap: 10px 16px; font-size: 15px; }
+.d2-detail dt { color: #6B7689; } .d2-detail dd { margin: 0; word-break: break-all; }
+.d2-detail-proj { display: contents; }
+.d2-modal .ant-modal-title { font-size: 18px; display: flex; align-items: center; gap: 12px; padding-right: 28px; }
+.d2-detail + .d2-detail { border-top: 1px dashed var(--line); padding-top: 16px; }
+
+/* 地图上的控件：快捷定位、放大缩小、提示 */
+.d2-presets { position: absolute; top: 0; left: 28px; display: flex; gap: 6px; }
+.d2-presets button, .d2-zoom button { font: inherit; font-size: 14px; color: #2B3550; background: rgba(255,255,255,.94); border: 1px solid #D6E1EF; border-radius: 6px; padding: 4px 12px; cursor: pointer; box-shadow: 0 2px 6px rgba(40,80,150,.06); }
+.d2-presets button:hover, .d2-zoom button:hover { border-color: var(--signal); color: var(--signal); }
+.d2-presets button.on { background: var(--signal); border-color: var(--signal); color: #fff; }
+.d2-zoom { position: absolute; right: 28px; bottom: 22px; display: flex; flex-direction: column; gap: 6px; }
+.d2-zoom button { width: 34px; height: 34px; padding: 0; font-size: 20px; line-height: 1; }
+.d2-maphint { position: absolute; right: 74px; bottom: 26px; font-size: 13px; color: var(--muted); background: rgba(255,255,255,.85); padding: 3px 10px; border-radius: 4px; pointer-events: none; }
+
+
+/* 地图筛选：板块标题右侧的筛选标签、无数据提示 */
+.d2-block > header .d2-note:has(.d2-scope) { overflow: visible; }
+.d2-scope { display: inline-flex; align-items: center; gap: 6px; font-size: 15px; font-weight: 700; color: var(--signal); background: #FFF1E7; border: 1px solid #F8C9A8; border-radius: 6px; padding: 2px 4px 2px 12px; }
+.d2-scope::before { content: '已筛选：'; font-weight: 400; color: var(--muted); }
+.d2-scope button { font: inherit; font-size: 16px; line-height: 1; color: var(--signal); background: none; border: 0; border-radius: 4px; padding: 2px 6px; cursor: pointer; }
+.d2-scope button:hover { background: #FFE0CB; }
+.d2-table td.d2-none { text-align: center; color: var(--muted); font-size: 15px; }

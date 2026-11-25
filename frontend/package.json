@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "data": "node scripts/clean-data.mjs",
-    "test": "node --test scripts/*.test.mjs src/*.test.mjs"
+    "test": "node --test scripts/*.test.mjs src/*.test.mjs src/demo2/*.test.mjs"
   },
   "dependencies": {
     "@fontsource/barlow-condensed": "^5.3.0",

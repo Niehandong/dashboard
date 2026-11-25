@@ -27,8 +27,10 @@ interface Props {
   groups: string[] // 全部集团
   group: string
   onGroup: (g: string) => void
+  light: boolean // 浅色主题
+  onTheme: () => void // 切换深色/浅色
 }
-export default function DashboardView({ data, groups, group, onGroup }: Props) {
+export default function DashboardView({ data, groups, group, onGroup, light, onTheme }: Props) {
   const [box, setBox] = useState({ s: 1, x: 0, y: 0 })
   const [full, setFull] = useState(() => !!document.fullscreenElement)
   const [target, setTarget] = useState<DetailTarget | null>(null)
@@ -85,7 +87,7 @@ export default function DashboardView({ data, groups, group, onGroup }: Props) {
       <div className="screen" style={{ transform: `scale(${box.s})`, left: box.x, top: box.y }}>
         {/* 地图铺满整个画布，其余元素浮在上面 */}
         <section className="stage" onMouseEnter={() => setMapHover(true)} onMouseLeave={() => setMapHover(false)}>
-          <WorldMap ref={mapRef} data={data} stages={stages} paused={paused} onPickCity={openCity} scope={scope} onScope={setScope} />
+          <WorldMap ref={mapRef} data={data} stages={stages} paused={paused} onPickCity={openCity} scope={scope} onScope={setScope} light={light} />
         </section>
 
         <header className="cmd-head">
@@ -118,9 +120,11 @@ export default function DashboardView({ data, groups, group, onGroup }: Props) {
               <path d="M300 72 H420" stroke="#FF7A2E" strokeWidth="3" />
             </svg>
             <h1>集团作战地图</h1>
+            <p className="h-sub">明确工厂布局 · 规划产品导入 · 制定项目推进路线</p>
           </div>
           <div className="h-side h-right">
             <Clock />
+            <button className="h-btn" onClick={onTheme} title="在深色和浅色两种风格之间切换">{light ? '切换深色版' : '切换浅色版'}</button>
             <button className="h-btn" onClick={toggleFull}>{full ? '退出全屏' : '全屏展示'}</button>
           </div>
         </header>

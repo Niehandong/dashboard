@@ -31,5 +31,9 @@ fi
 
 IP=$(hostname -I | awk '{print $1}')
 sleep 3
-echo "作战地图： http://$IP:$PORT/"
+echo "方案列表： http://$IP:$PORT/"
+echo "Demo 1：   http://$IP:$PORT/demo1"
+echo "Demo 2：   http://$IP:$PORT/demo2"
+echo "Demo 3：   http://$IP:$PORT/demo3"
+echo "Demo 4：   http://$IP:$PORT/demo4"
 echo "日志目录： $LOG"
